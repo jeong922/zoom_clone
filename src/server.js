@@ -1,6 +1,7 @@
 import http from 'http';
 import express from 'express';
-import WebSocket from 'ws';
+// import WebSocket from 'ws';
+import SocketIO from 'socket.io';
 
 const app = express();
 
@@ -10,14 +11,20 @@ app.use('/public', express.static(__dirname + '/public'));
 app.get('/', (_, res) => res.render('home'));
 app.get('/*', (_, res) => res.redirect('/'));
 
-const handleListen = () => console.log(`Listening on http://localhost:3000`);
+const httpServer = http.createServer(app);
+const wsServer = SocketIO(httpServer);
 
-const server = http.createServer(app);
+wsServer.on('connection', (socket) => {
+  socket.on('enter_room', (roomName, done) => {
+    console.log(roomName);
+    setTimeout(() => {
+      done('hello from the backend');
+    }, 10000);
+  });
+});
 
-const wss = new WebSocket.Server({ server });
-
+/* const wss = new WebSocket.Server({ server });
 const sockets = [];
-
 wss.on('connection', (socket) => {
   sockets.push(socket);
   socket['nickname'] = 'anonymous';
@@ -30,14 +37,15 @@ wss.on('connection', (socket) => {
     switch (message.type) {
       case 'new_message':
         sockets.forEach((aSocket) =>
-          aSocket.send(`${socket.nickname}: ${message.payload}`)
+        aSocket.send(`${socket.nickname}: ${message.payload}`)
         );
         break;
-      case 'nickname':
-        socket['nickname'] = message.payload;
-        break;
-    }
-  });
-});
+        case 'nickname':
+          socket['nickname'] = message.payload;
+          break;
+        }
+      });
+    }); */
 
-server.listen(3000, handleListen);
+const handleListen = () => console.log(`Listening on http://localhost:3000`);
+httpServer.listen(3000, handleListen);
