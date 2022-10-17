@@ -14,6 +14,17 @@ app.get('/*', (_, res) => res.redirect('/'));
 const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
+function publicRoom() {
+  const { sids, rooms } = wsServer.sockets.adapter;
+  const publicRooms = [];
+  rooms.forEach((_, key) => {
+    if (sids.get(key) === undefined) {
+      publicRooms.push(key);
+    }
+  });
+  return publicRooms;
+}
+
 wsServer.on('connection', (socket) => {
   socket['nickname'] = 'anonymous';
   socket.onAny((event) => {
@@ -23,11 +34,15 @@ wsServer.on('connection', (socket) => {
     socket.join(roomName);
     done();
     socket.to(roomName).emit('welcome', socket.nickname);
+    wsServer.sockets.emit('room_change', publicRoom());
   });
   socket.on('disconnecting', () => {
     socket.rooms.forEach((room) =>
       socket.to(room).emit('bye', socket.nickname)
     );
+  });
+  socket.on('disconnect', () => {
+    wsServer.sockets.emit('room_change', publicRoom());
   });
   socket.on('new_message', (msg, room, done) => {
     socket.to(room).emit('new_message', `${socket.nickname}: ${msg}`);
@@ -35,30 +50,6 @@ wsServer.on('connection', (socket) => {
   });
   socket.on('nickname', (nickname) => (socket['nickname'] = nickname));
 });
-
-/* const wss = new WebSocket.Server({ server });
-const sockets = [];
-wss.on('connection', (socket) => {
-  sockets.push(socket);
-  socket['nickname'] = 'anonymous';
-  console.log('Conneted to Browser ✅');
-  socket.on('close', () => {
-    console.log('Conneted from the Browser ❌');
-  });
-  socket.on('message', (m) => {
-    const message = JSON.parse(m);
-    switch (message.type) {
-      case 'new_message':
-        sockets.forEach((aSocket) =>
-        aSocket.send(`${socket.nickname}: ${message.payload}`)
-        );
-        break;
-        case 'nickname':
-          socket['nickname'] = message.payload;
-          break;
-        }
-      });
-    }); */
 
 const handleListen = () => console.log(`Listening on http://localhost:3000`);
 httpServer.listen(3000, handleListen);
